@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LocalKB · 本地知识库</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface2: #22263a;
+    --border: #2e3248;
+    --accent: #6c63ff;
+    --accent2: #a78bfa;
+    --text: #e2e8f0;
+    --muted: #64748b;
+    --success: #22c55e;
+    --danger: #ef4444;
+    --warn: #f59e0b;
+    --radius: 12px;
+    --shadow: 0 4px 24px rgba(0,0,0,.4);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; height: 100vh; display: flex; overflow: hidden; }
+
+  /* ── Sidebar ── */
+  #sidebar {
+    width: 260px; min-width: 260px; background: var(--surface);
+    border-right: 1px solid var(--border); display: flex; flex-direction: column;
+  }
+  .sidebar-header { padding: 20px 16px 12px; border-bottom: 1px solid var(--border); }
+  .logo { font-size: 18px; font-weight: 700; color: var(--accent2); display: flex; align-items: center; gap: 8px; }
+  .logo-icon { font-size: 22px; }
+  .sidebar-sub { font-size: 11px; color: var(--muted); margin-top: 4px; }
+  #kb-list { flex: 1; overflow-y: auto; padding: 8px; }
+  .kb-item {
+    padding: 10px 12px; border-radius: 8px; cursor: pointer; margin-bottom: 4px;
+    border: 1px solid transparent; transition: all .15s;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .kb-item:hover { background: var(--surface2); border-color: var(--border); }
+  .kb-item.active { background: rgba(108,99,255,.15); border-color: var(--accent); }
+  .kb-icon { font-size: 18px; }
+  .kb-info { flex: 1; min-width: 0; }
+  .kb-name { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .kb-meta { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .kb-del { opacity: 0; color: var(--danger); cursor: pointer; font-size: 16px; padding: 2px 4px; border-radius: 4px; transition: opacity .15s; }
+  .kb-item:hover .kb-del { opacity: 1; }
+  .sidebar-footer { padding: 12px; border-top: 1px solid var(--border); }
+  .btn-new {
+    width: 100%; padding: 10px; background: var(--accent); color: #fff; border: none;
+    border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600;
+    display: flex; align-items: center; justify-content: center; gap: 6px; transition: opacity .15s;
+  }
+  .btn-new:hover { opacity: .88; }
+
+  /* ── Main ── */
+  #main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+  /* ── Tabs ── */
+  .tabs { display: flex; border-bottom: 1px solid var(--border); padding: 0 24px; background: var(--surface); }
+  .tab { padding: 14px 18px; cursor: pointer; font-size: 13px; font-weight: 500; color: var(--muted); border-bottom: 2px solid transparent; margin-bottom: -1px; transition: all .15s; }
+  .tab:hover { color: var(--text); }
+  .tab.active { color: var(--accent2); border-bottom-color: var(--accent2); }
+
+  /* ── Content area ── */
+  .content { flex: 1; overflow-y: auto; padding: 24px; }
+
+  /* ── Welcome ── */
+  #welcome { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; gap: 12px; color: var(--muted); }
+  .welcome-icon { font-size: 56px; opacity: .4; }
+  .welcome-title { font-size: 20px; font-weight: 600; color: var(--text); opacity: .6; }
+  .welcome-sub { font-size: 14px; }
+
+  /* ── Section headers ── */
+  .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+  .section-title { font-size: 16px; font-weight: 700; color: var(--text); }
+
+  /* ── Upload zone ── */
+  .upload-zone {
+    border: 2px dashed var(--border); border-radius: var(--radius); padding: 32px;
+    text-align: center; cursor: pointer; transition: all .2s; margin-bottom: 20px;
+  }
+  .upload-zone:hover, .upload-zone.drag { border-color: var(--accent); background: rgba(108,99,255,.06); }
+  .upload-icon { font-size: 36px; margin-bottom: 8px; }
+  .upload-hint { font-size: 13px; color: var(--muted); }
+  .upload-types { font-size: 11px; color: var(--muted); margin-top: 4px; }
+
+  /* ── File list ── */
+  .file-grid { display: flex; flex-direction: column; gap: 8px; }
+  .file-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+    padding: 12px 16px; display: flex; align-items: center; gap: 12px;
+  }
+  .file-ext { width: 40px; height: 40px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; flex-shrink: 0; }
+  .ext-pdf { background: rgba(239,68,68,.15); color: #ef4444; }
+  .ext-txt { background: rgba(34,197,94,.15); color: #22c55e; }
+  .ext-md  { background: rgba(108,99,255,.15); color: var(--accent2); }
+  .file-info { flex: 1; min-width: 0; }
+  .file-name { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .file-size { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .btn-icon { background: none; border: none; cursor: pointer; font-size: 18px; color: var(--muted); padding: 4px; border-radius: 6px; transition: all .15s; }
+  .btn-icon:hover { background: rgba(239,68,68,.12); color: var(--danger); }
+
+  /* ── Search ── */
+  .search-bar { display: flex; gap: 10px; margin-bottom: 20px; }
+  .search-input {
+    flex: 1; background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+    padding: 10px 16px; color: var(--text); font-size: 14px; outline: none; transition: border-color .15s;
+  }
+  .search-input:focus { border-color: var(--accent); }
+  .btn-search {
+    padding: 10px 20px; background: var(--accent); color: #fff; border: none;
+    border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; transition: opacity .15s;
+  }
+  .btn-search:hover { opacity: .88; }
+  .result-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+    padding: 16px; margin-bottom: 10px; transition: border-color .15s;
+  }
+  .result-card:hover { border-color: var(--accent); }
+  .result-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+  .result-source { font-size: 12px; color: var(--accent2); font-weight: 600; }
+  .result-score { font-size: 11px; color: var(--muted); background: var(--surface2); padding: 2px 8px; border-radius: 20px; }
+  .result-text { font-size: 13px; line-height: 1.7; color: #cbd5e1; }
+  .result-text mark { background: rgba(108,99,255,.35); color: var(--accent2); border-radius: 2px; padding: 0 2px; }
+  .no-result { text-align: center; color: var(--muted); padding: 40px; }
+
+  /* ── Stats ── */
+  .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 24px; }
+  .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px; text-align: center; }
+  .stat-num { font-size: 28px; font-weight: 700; color: var(--accent2); }
+  .stat-label { font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+  /* ── Misc ── */
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+  .badge-purple { background: rgba(108,99,255,.2); color: var(--accent2); }
+  .toast {
+    position: fixed; bottom: 24px; right: 24px; background: var(--surface2);
+    border: 1px solid var(--border); border-radius: 10px; padding: 12px 20px;
+    font-size: 13px; box-shadow: var(--shadow); z-index: 999;
+    animation: toastIn .25s ease; max-width: 320px;
+  }
+  .toast.success { border-color: var(--success); color: var(--success); }
+  .toast.error   { border-color: var(--danger);  color: var(--danger);  }
+  @keyframes toastIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
+
+  /* ── Modal ── */
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.6); z-index: 100; display: flex; align-items: center; justify-content: center; }
+  .modal { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 28px; width: 400px; box-shadow: var(--shadow); }
+  .modal-title { font-size: 16px; font-weight: 700; margin-bottom: 16px; }
+  .form-row { margin-bottom: 14px; }
+  .form-label { font-size: 12px; color: var(--muted); margin-bottom: 6px; display: block; font-weight: 600; text-transform: uppercase; letter-spacing: .5px; }
+  .form-input {
+    width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+    padding: 10px 14px; color: var(--text); font-size: 14px; outline: none;
+  }
+  .form-input:focus { border-color: var(--accent); }
+  .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+  .btn-cancel { padding: 8px 18px; background: var(--surface2); border: 1px solid var(--border); color: var(--text); border-radius: 8px; cursor: pointer; font-size: 13px; }
+  .btn-submit { padding: 8px 18px; background: var(--accent); border: none; color: #fff; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600; }
+
+  /* spinner */
+  .spin { display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,.3); border-top-color: #fff; border-radius: 50%; animation: spin .6s linear infinite; vertical-align: middle; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  ::-webkit-scrollbar { width: 6px; } ::-webkit-scrollbar-track { background: transparent; } ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<!-- Sidebar -->
+<div id="sidebar">
+  <div class="sidebar-header">
+    <div class="logo"><span class="logo-icon">🗄️</span> LocalKB</div>
+    <div class="sidebar-sub">本地知识库管理</div>
+  </div>
+  <div id="kb-list"></div>
+  <div class="sidebar-footer">
+    <button class="btn-new" onclick="openModal()">＋ 新建知识库</button>
+  </div>
+</div>
+
+<!-- Main -->
+<div id="main">
+  <!-- Welcome -->
+  <div id="welcome">
+    <div class="welcome-icon">📚</div>
+    <div class="welcome-title">选择或新建一个知识库</div>
+    <div class="welcome-sub">支持 PDF、TXT、Markdown 文件 · BM25 全文检索</div>
+  </div>
+
+  <!-- KB view (hidden until selected) -->
+  <div id="kb-view" style="display:none; flex-direction:column; height:100%;">
+    <div class="tabs">
+      <div class="tab active" data-tab="files" onclick="switchTab('files')">📁 文件管理</div>
+      <div class="tab" data-tab="search" onclick="switchTab('search')">🔍 检索</div>
+      <div class="tab" data-tab="stats" onclick="switchTab('stats')">📊 统计</div>
+    </div>
+
+    <!-- Files tab -->
+    <div id="tab-files" class="content">
+      <div class="section-header">
+        <div class="section-title" id="files-title">文件管理</div>
+      </div>
+      <div class="upload-zone" id="upload-zone" onclick="document.getElementById('file-input').click()"
+           ondragover="event.preventDefault();this.classList.add('drag')"
+           ondragleave="this.classList.remove('drag')"
+           ondrop="handleDrop(event)">
+        <div class="upload-icon">📤</div>
+        <div>点击上传 或 拖拽文件到这里</div>
+        <div class="upload-types">支持 PDF · TXT · Markdown</div>
+      </div>
+      <input type="file" id="file-input" style="display:none" multiple accept=".pdf,.txt,.md,.markdown" onchange="uploadFiles(this.files)">
+      <div class="file-grid" id="file-grid"></div>
+    </div>
+
+    <!-- Search tab -->
+    <div id="tab-search" class="content" style="display:none">
+      <div class="section-header">
+        <div class="section-title">BM25 全文检索</div>
+      </div>
+      <div class="search-bar">
+        <input class="search-input" id="search-query" placeholder="输入关键词或问题…" onkeydown="if(event.key==='Enter')doSearch()">
+        <button class="btn-search" onclick="doSearch()">检索</button>
+      </div>
+      <div id="search-results"></div>
+    </div>
+
+    <!-- Stats tab -->
+    <div id="tab-stats" class="content" style="display:none">
+      <div class="section-header">
+        <div class="section-title">知识库统计</div>
+      </div>
+      <div class="stats-grid" id="stats-grid"></div>
+      <div id="stats-sources"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Create KB modal -->
+<div class="modal-overlay" id="modal" style="display:none" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <div class="modal-title">新建知识库</div>
+    <div class="form-row">
+      <label class="form-label">知识库名称</label>
+      <input class="form-input" id="new-kb-name" placeholder="如：Android学习笔记" onkeydown="if(event.key==='Enter')createKB()">
+    </div>
+    <div class="form-row">
+      <label class="form-label">描述（可选）</label>
+      <input class="form-input" id="new-kb-desc" placeholder="一句话描述这个知识库的用途">
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal()">取消</button>
+      <button class="btn-submit" onclick="createKB()">创建</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = 'http://localhost:5800/api';
+let currentKB = null;
+
+// ── Utils ─────────────────────────────────────────────────────
+function toast(msg, type='success') {
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 3000);
+}
+function fmt(bytes) {
+  if (bytes < 1024) return bytes + 'B';
+  if (bytes < 1024*1024) return (bytes/1024).toFixed(1) + 'KB';
+  return (bytes/1024/1024).toFixed(1) + 'MB';
+}
+function extClass(name) {
+  const e = name.split('.').pop().toLowerCase();
+  if (e === 'pdf') return 'ext-pdf';
+  if (e === 'md' || e === 'markdown') return 'ext-md';
+  return 'ext-txt';
+}
+function highlight(text, query) {
+  if (!query) return text;
+  const terms = query.trim().split(/\s+/).filter(Boolean);
+  let result = text;
+  terms.forEach(t => {
+    const re = new RegExp(t.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'), 'gi');
+    result = result.replace(re, m => `<mark>${m}</mark>`);
+  });
+  return result;
+}
+
+// ── KB List ───────────────────────────────────────────────────
+async function loadKBList() {
+  const res = await fetch(`${API}/kbs`);
+  const kbs = await res.json();
+  const el = document.getElementById('kb-list');
+  if (!kbs.length) {
+    el.innerHTML = '<div style="padding:16px;font-size:12px;color:var(--muted);text-align:center">暂无知识库<br>点击下方按钮新建</div>';
+    return;
+  }
+  el.innerHTML = kbs.map(kb => `
+    <div class="kb-item ${kb.name===currentKB?'active':''}" onclick="selectKB('${kb.name}')">
+      <div class="kb-icon">📗</div>
+      <div class="kb-info">
+        <div class="kb-name">${kb.name}</div>
+        <div class="kb-meta">${kb.file_count} 文件 · ${kb.chunk_count} 块</div>
+      </div>
+      <span class="kb-del" onclick="event.stopPropagation();deleteKB('${kb.name}')" title="删除">✕</span>
+    </div>
+  `).join('');
+}
+
+async function selectKB(name) {
+  currentKB = name;
+  document.getElementById('welcome').style.display = 'none';
+  document.getElementById('kb-view').style.display = 'flex';
+  document.getElementById('files-title').textContent = name;
+  await loadKBList();
+  switchTab('files');
+  await loadFiles();
+}
+
+async function deleteKB(name) {
+  if (!confirm(`确认删除知识库「${name}」？此操作不可撤销。`)) return;
+  await fetch(`${API}/kbs/${encodeURIComponent(name)}`, { method: 'DELETE' });
+  toast(`已删除「${name}」`);
+  if (currentKB === name) {
+    currentKB = null;
+    document.getElementById('welcome').style.display = 'flex';
+    document.getElementById('kb-view').style.display = 'none';
+  }
+  loadKBList();
+}
+
+// ── Modal ─────────────────────────────────────────────────────
+function openModal() {
+  document.getElementById('modal').style.display = 'flex';
+  setTimeout(() => document.getElementById('new-kb-name').focus(), 50);
+}
+function closeModal() {
+  document.getElementById('modal').style.display = 'none';
+  document.getElementById('new-kb-name').value = '';
+  document.getElementById('new-kb-desc').value = '';
+}
+async function createKB() {
+  const name = document.getElementById('new-kb-name').value.trim();
+  const desc = document.getElementById('new-kb-desc').value.trim();
+  if (!name) { toast('请输入名称', 'error'); return; }
+  const res = await fetch(`${API}/kbs`, {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ name, description: desc })
+  });
+  const data = await res.json();
+  if (!res.ok) { toast(data.error || 'Error', 'error'); return; }
+  toast(`知识库「${name}」已创建`);
+  closeModal();
+  await loadKBList();
+  selectKB(name);
+}
+
+// ── Tabs ──────────────────────────────────────────────────────
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+  document.querySelectorAll('[id^="tab-"]').forEach(el => el.style.display = 'none');
+  document.getElementById(`tab-${tab}`).style.display = 'block';
+  if (tab === 'files') loadFiles();
+  if (tab === 'stats') loadStats();
+}
+
+// ── Files ─────────────────────────────────────────────────────
+async function loadFiles() {
+  if (!currentKB) return;
+  const res = await fetch(`${API}/kbs/${encodeURIComponent(currentKB)}/files`);
+  const files = await res.json();
+  const grid = document.getElementById('file-grid');
+  if (!files.length) {
+    grid.innerHTML = '<div style="text-align:center;color:var(--muted);padding:24px;font-size:13px">暂无文件，请上传</div>';
+    return;
+  }
+  grid.innerHTML = files.map(f => {
+    const ext = f.name.split('.').pop().toUpperCase();
+    return `
+      <div class="file-card">
+        <div class="file-ext ${extClass(f.name)}">${ext}</div>
+        <div class="file-info">
+          <div class="file-name">${f.name}</div>
+          <div class="file-size">${fmt(f.size)} · ${f.mtime.slice(0,16).replace('T',' ')}</div>
+        </div>
+        <button class="btn-icon" onclick="deleteFile('${f.name}')" title="删除">🗑️</button>
+      </div>
+    `;
+  }).join('');
+}
+
+async function uploadFiles(fileList) {
+  if (!currentKB || !fileList.length) return;
+  const zone = document.getElementById('upload-zone');
+  zone.innerHTML = '<div class="spin"></div> 处理中…';
+  for (const file of fileList) {
+    const fd = new FormData();
+    fd.append('file', file);
+    try {
+      const res = await fetch(`${API}/kbs/${encodeURIComponent(currentKB)}/upload`, { method:'POST', body:fd });
+      const data = await res.json();
+      if (res.ok) toast(`✅ ${file.name}：${data.chunks_added} 块`);
+      else toast(`❌ ${file.name}：${data.error}`, 'error');
+    } catch(e) { toast(`❌ ${file.name} 上传失败`, 'error'); }
+  }
+  zone.innerHTML = '<div class="upload-icon">📤</div><div>点击上传 或 拖拽文件到这里</div><div class="upload-types">支持 PDF · TXT · Markdown</div>';
+  document.getElementById('file-input').value = '';
+  loadFiles();
+  loadKBList();
+}
+
+function handleDrop(e) {
+  e.preventDefault();
+  document.getElementById('upload-zone').classList.remove('drag');
+  uploadFiles(e.dataTransfer.files);
+}
+
+async function deleteFile(filename) {
+  if (!confirm(`删除文件「${filename}」及其对应索引？`)) return;
+  const res = await fetch(`${API}/kbs/${encodeURIComponent(currentKB)}/files/${encodeURIComponent(filename)}`, { method:'DELETE' });
+  const data = await res.json();
+  if (res.ok) toast(`已删除「${filename}」`);
+  else toast(data.error, 'error');
+  loadFiles();
+  loadKBList();
+}
+
+// ── Search ────────────────────────────────────────────────────
+async function doSearch() {
+  const query = document.getElementById('search-query').value.trim();
+  if (!query || !currentKB) return;
+  const container = document.getElementById('search-results');
+  container.innerHTML = '<div style="color:var(--muted);font-size:13px"><span class="spin"></span> 检索中…</div>';
+  const res = await fetch(`${API}/kbs/${encodeURIComponent(currentKB)}/search`, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ query, top_k: 8 })
+  });
+  const data = await res.json();
+  if (!res.ok) { container.innerHTML = `<div class="no-result">${data.error}</div>`; return; }
+  if (!data.results.length) { container.innerHTML = '<div class="no-result">没有找到相关内容</div>'; return; }
+  container.innerHTML = data.results.map((r,i) => `
+    <div class="result-card">
+      <div class="result-header">
+        <span class="result-source">📄 ${r.source} · 块 #${r.chunk_index+1}</span>
+        <span class="result-score">BM25: ${r.score}</span>
+      </div>
+      <div class="result-text">${highlight(r.snippet, query)}${r.text.length>300?'…':''}</div>
+    </div>
+  `).join('');
+}
+
+// ── Stats ─────────────────────────────────────────────────────
+async function loadStats() {
+  if (!currentKB) return;
+  const res = await fetch(`${API}/kbs/${encodeURIComponent(currentKB)}/stats`);
+  const data = await res.json();
+  document.getElementById('stats-grid').innerHTML = `
+    <div class="stat-card"><div class="stat-num">${data.file_count}</div><div class="stat-label">文件数</div></div>
+    <div class="stat-card"><div class="stat-num">${data.chunk_count}</div><div class="stat-label">文本块</div></div>
+    <div class="stat-card"><div class="stat-num">${(data.total_chars/1000).toFixed(1)}K</div><div class="stat-label">总字符数</div></div>
+  `;
+  const meta = data.metadata || {};
+  document.getElementById('stats-sources').innerHTML = `
+    <div style="font-size:14px;font-weight:600;margin-bottom:10px;color:var(--text)">来源文件</div>
+    ${data.sources.map(s => `<div style="font-size:13px;color:var(--muted);padding:4px 0;border-bottom:1px solid var(--border)">📄 ${s}</div>`).join('') || '<div style="color:var(--muted);font-size:13px">暂无文件</div>'}
+    ${meta.description ? `<div style="margin-top:16px;font-size:13px;color:var(--muted);background:var(--surface);border-radius:8px;padding:12px">📝 ${meta.description}</div>` : ''}
+    <div style="margin-top:12px;font-size:12px;color:var(--muted)">创建时间：${(meta.created_at||'').slice(0,16).replace('T',' ')}</div>
+  `;
+}
+
+// ── Init ──────────────────────────────────────────────────────
+loadKBList();
+</script>
+</body>
+</html>
